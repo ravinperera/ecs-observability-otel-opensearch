@@ -1,0 +1,54 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: ecs-application
+          scrape_interval: 30s
+          static_configs:
+            - targets:
+                - 127.0.0.1:8000
+
+processors:
+  batch:
+    timeout: 10s
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+    spike_limit_mib: 64
+  resource:
+    attributes:
+      - key: service.namespace
+        value: ecs
+        action: upsert
+      - key: deployment.environment
+        value: dev
+        action: upsert
+
+exporters:
+  awscloudwatchlogs:
+    log_group_name: /ecs/otel-collector
+    log_stream_name: collector
+    region: eu-west-2
+  logging:
+    verbosity: normal
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [awscloudwatchlogs]
