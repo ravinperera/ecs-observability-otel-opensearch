@@ -1,0 +1,62 @@
+{
+  "family": "sample-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::111122223333:role/example-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::111122223333:role/example-ecs-task-role",
+  "containerDefinitions": [
+    {
+      "name": "log-router",
+      "image": "public.ecr.aws/aws-observability/aws-for-fluent-bit:stable",
+      "essential": true,
+      "firelensConfiguration": {
+        "type": "fluentbit",
+        "options": {
+          "enable-ecs-log-metadata": "true"
+        }
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/firelens",
+          "awslogs-region": "eu-west-2",
+          "awslogs-stream-prefix": "firelens"
+        }
+      }
+    },
+    {
+      "name": "sample-api",
+      "image": "111122223333.dkr.ecr.eu-west-2.amazonaws.com/sample-api:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "value": "http://otel-collector.local:4318"
+        },
+        {
+          "name": "OTEL_SERVICE_NAME",
+          "value": "sample-api"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awsfirelens",
+        "options": {
+          "Name": "cloudwatch_logs",
+          "region": "eu-west-2",
+          "log_group_name": "/ecs/sample-api",
+          "log_stream_prefix": "app/",
+          "auto_create_group": "false"
+        }
+      }
+    }
+  ]
+}
