@@ -52,7 +52,8 @@ OpenTelemetry Collector
 ├── docs/
 │   ├── logging-strategy.md
 │   ├── metrics-and-traces.md
-│   └── opensearch-indexing.md
+│   ├── opensearch-indexing.md
+│   └── troubleshooting.md
 ├── CONTRIBUTING.md
 └── README.md
 ```
@@ -66,6 +67,13 @@ OpenTelemetry Collector
 - Avoid sending secrets or sensitive payloads into logs
 - Use per-environment OpenSearch indexes
 - Keep observability IAM permissions narrow and auditable
+
+## Guides
+
+- [Logging strategy](docs/logging-strategy.md)
+- [Metrics and traces](docs/metrics-and-traces.md)
+- [OpenSearch indexing](docs/opensearch-indexing.md)
+- [Troubleshooting guide](docs/troubleshooting.md)
 
 ## Contributing
 
