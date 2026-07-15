@@ -54,6 +54,7 @@ OpenTelemetry Collector
 │   ├── logging-strategy.md
 │   ├── metrics-and-traces.md
 │   ├── opensearch-indexing.md
+│   ├── sensitive-telemetry-handling.md
 │   └── troubleshooting.md
 ├── CONTRIBUTING.md
 └── README.md
@@ -76,6 +77,7 @@ OpenTelemetry Collector
 - [Logging strategy](docs/logging-strategy.md)
 - [Metrics and traces](docs/metrics-and-traces.md)
 - [OpenSearch indexing](docs/opensearch-indexing.md)
+- [Sensitive telemetry handling](docs/sensitive-telemetry-handling.md)
 - [Troubleshooting guide](docs/troubleshooting.md)
 
 ## Contributing
