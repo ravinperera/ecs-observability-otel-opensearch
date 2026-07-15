@@ -16,24 +16,9 @@ This repository demonstrates a production-style observability approach for ECS F
 
 ## Architecture
 
-```text
-Application container
-   |
-   | stdout/stderr
-   v
-FireLens / Fluent Bit
-   |
-   +--> CloudWatch Logs
-   +--> OpenSearch
+Application containers write structured logs to FireLens and export metrics and traces to the OpenTelemetry Collector. The routing layer then sends each signal to the appropriate CloudWatch or OpenSearch destination.
 
-Application metrics/traces
-   |
-   v
-OpenTelemetry Collector
-   |
-   +--> CloudWatch metrics/logs
-   +--> OpenSearch-compatible observability backend
-```
+See the [telemetry architecture diagram](docs/architecture.md) for the separate log, metric, and trace flows, along with the main security and reliability boundaries.
 
 ## Repository Structure
 
@@ -50,6 +35,7 @@ OpenTelemetry Collector
 │   ├── ecs-task-iam.tf
 │   └── variables.tf
 ├── docs/
+│   ├── architecture.md
 │   ├── cost-and-cardinality-guardrails.md
 │   ├── logging-strategy.md
 │   ├── metrics-and-traces.md
@@ -74,6 +60,7 @@ OpenTelemetry Collector
 
 ## Guides
 
+- [Telemetry architecture](docs/architecture.md)
 - [Cost and cardinality guardrails](docs/cost-and-cardinality-guardrails.md)
 - [Logging strategy](docs/logging-strategy.md)
 - [Metrics and traces](docs/metrics-and-traces.md)
