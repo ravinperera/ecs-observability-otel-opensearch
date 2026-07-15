@@ -54,6 +54,7 @@ OpenTelemetry Collector
 │   ├── logging-strategy.md
 │   ├── metrics-and-traces.md
 │   ├── opensearch-indexing.md
+│   ├── production-rollout-checklist.md
 │   ├── sensitive-telemetry-handling.md
 │   └── troubleshooting.md
 ├── CONTRIBUTING.md
@@ -77,6 +78,7 @@ OpenTelemetry Collector
 - [Logging strategy](docs/logging-strategy.md)
 - [Metrics and traces](docs/metrics-and-traces.md)
 - [OpenSearch indexing](docs/opensearch-indexing.md)
+- [Production rollout and rollback checklist](docs/production-rollout-checklist.md)
 - [Sensitive telemetry handling](docs/sensitive-telemetry-handling.md)
 - [Troubleshooting guide](docs/troubleshooting.md)
 
