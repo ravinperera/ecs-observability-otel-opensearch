@@ -12,7 +12,7 @@ This repository demonstrates a production-style observability approach for ECS F
 - OpenSearch ingestion pattern for searchable operational logs
 - Separation between application containers and observability sidecars/services
 - Terraform examples for log groups, task definitions, and IAM permissions
-- Practical notes on retention, indexes, security, and alerting
+- Practical notes on retention, indexes, security, alerting, and telemetry cost control
 
 ## Architecture
 
@@ -50,6 +50,7 @@ OpenTelemetry Collector
 │   ├── ecs-task-iam.tf
 │   └── variables.tf
 ├── docs/
+│   ├── cost-and-cardinality-guardrails.md
 │   ├── logging-strategy.md
 │   ├── metrics-and-traces.md
 │   ├── opensearch-indexing.md
@@ -67,9 +68,11 @@ OpenTelemetry Collector
 - Avoid sending secrets or sensitive payloads into logs
 - Use per-environment OpenSearch indexes
 - Keep observability IAM permissions narrow and auditable
+- Treat telemetry volume and cardinality as production reliability concerns
 
 ## Guides
 
+- [Cost and cardinality guardrails](docs/cost-and-cardinality-guardrails.md)
 - [Logging strategy](docs/logging-strategy.md)
 - [Metrics and traces](docs/metrics-and-traces.md)
 - [OpenSearch indexing](docs/opensearch-indexing.md)
