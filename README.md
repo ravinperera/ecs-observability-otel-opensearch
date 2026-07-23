@@ -4,6 +4,25 @@ ECS observability pattern using OpenTelemetry Collector, CloudWatch logs, FireLe
 
 This repository demonstrates a production-style observability approach for ECS Fargate workloads. It is intentionally generic and uses placeholder values only.
 
+## 30-Second Quick Start
+
+Use this repository as a reference pattern for understanding how ECS telemetry is produced, routed, and stored:
+
+1. Start with the example ECS task definitions in [`ecs/`](ecs/) to see the application, FireLens, and OpenTelemetry components.
+2. Review [`configs/fluent-bit-opensearch.conf`](configs/fluent-bit-opensearch.conf) for the container log-routing pattern.
+3. Review [`configs/otel-collector-config.yaml`](configs/otel-collector-config.yaml) for the metrics and traces collection pattern.
+4. Review the Terraform examples in [`terraform/`](terraform/) for supporting log groups and task IAM permissions.
+5. Read the [logging strategy](docs/logging-strategy.md), [metrics and traces](docs/metrics-and-traces.md), and [OpenSearch indexing](docs/opensearch-indexing.md) guides before adapting the pattern.
+
+The basic telemetry flow is:
+
+- Application containers write structured logs to `stdout` and `stderr`.
+- FireLens or Fluent Bit routes those logs to CloudWatch Logs and, where appropriate, OpenSearch.
+- Applications export metrics and traces to the OpenTelemetry Collector.
+- The collector processes and forwards telemetry to the configured observability backends.
+
+Files in `ecs/`, `configs/`, and `terraform/` are illustrative examples and configuration patterns. They contain placeholders and are not intended for direct production deployment without environment-specific security, networking, capacity, retention, and cost review.
+
 ## What This Demonstrates
 
 - ECS service logging strategy using CloudWatch Logs
