@@ -60,6 +60,7 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 │   ├── metrics-and-traces.md
 │   ├── opensearch-indexing.md
 │   ├── production-rollout-checklist.md
+│   ├── runbooks.md
 │   ├── sensitive-telemetry-handling.md
 │   └── troubleshooting.md
 ├── CONTRIBUTING.md
@@ -84,6 +85,7 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 - [Logging strategy](docs/logging-strategy.md)
 - [Metrics and traces](docs/metrics-and-traces.md)
 - [OpenSearch indexing](docs/opensearch-indexing.md)
+- [Operational runbook examples](docs/runbooks.md)
 - [Production rollout and rollback checklist](docs/production-rollout-checklist.md)
 - [Sensitive telemetry handling](docs/sensitive-telemetry-handling.md)
 - [Troubleshooting guide](docs/troubleshooting.md)
