@@ -43,6 +43,8 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 
 ```text
 .
+├── .github/workflows/
+│   └── validate.yml
 ├── configs/
 │   ├── otel-collector-config.yaml
 │   └── fluent-bit-opensearch.conf
@@ -53,6 +55,8 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 │   ├── cloudwatch-log-groups.tf
 │   ├── ecs-task-iam.tf
 │   └── variables.tf
+├── scripts/
+│   └── validate_repository.py
 ├── docs/
 │   ├── architecture.md
 │   ├── cost-and-cardinality-guardrails.md
@@ -89,6 +93,26 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 - [Production rollout and rollback checklist](docs/production-rollout-checklist.md)
 - [Sensitive telemetry handling](docs/sensitive-telemetry-handling.md)
 - [Troubleshooting guide](docs/troubleshooting.md)
+
+## Validation
+
+The read-only GitHub Actions workflow runs on pull requests, pushes to `main`, and manual dispatches. It performs safe offline checks only:
+
+- parses every JSON example with the Python standard library;
+- parses every YAML example with the pinned `PyYAML==6.0.2` dependency;
+- verifies that Markdown files are UTF-8 and have balanced fenced code blocks.
+
+Run the same checks locally:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: PyYAML==6.0.2
+.venv/bin/python scripts/validate_repository.py
+```
+
+The workflow intentionally does **not** contact AWS, register ECS task definitions, connect to OpenSearch, start Fluent Bit, run an OpenTelemetry Collector binary, or verify Terraform against live providers. Those checks require environment-specific endpoints, credentials, plugins, network access, and production review. Passing this workflow confirms basic syntax and documentation structure only; it does not prove that the examples are deployment-ready.
+
+The workflow uses `contents: read`, does not request secrets, and uses no `pull_request_target` trigger, so it is safe to run for public-fork pull requests.
 
 ## Contributing
 
