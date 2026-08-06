@@ -37,5 +37,10 @@ jobs:
           --only-binary=:all:
           PyYAML==6.0.2
 
+      - name: Run validator regression tests
+        run: >-
+          /tmp/example-validation/bin/python -m unittest discover
+          -s tests -p 'test_validate_repository.py' -v
+
       - name: Validate repository examples
         run: /tmp/example-validation/bin/python scripts/validate_repository.py
