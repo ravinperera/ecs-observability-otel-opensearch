@@ -69,6 +69,52 @@ class RepositoryValidatorTests(unittest.TestCase):
 
             self.assertEqual(["contains a NUL byte"], MODULE.validate_markdown(path))
 
+    def test_markdown_validation_accepts_existing_local_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            docs = root / "docs"
+            docs.mkdir()
+            (root / "README.md").write_text("# Root\n", encoding="utf-8")
+            guide = docs / "guide.md"
+            guide.write_text("[Root](../README.md#root)\n", encoding="utf-8")
+
+            self.assertEqual([], MODULE.validate_markdown(guide, root))
+
+    def test_markdown_validation_rejects_missing_local_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            guide = root / "guide.md"
+            guide.write_text("[Missing](docs/missing.md)\n", encoding="utf-8")
+
+            errors = MODULE.validate_markdown(guide, root)
+            self.assertIn("missing local link target", errors[0])
+
+    def test_markdown_validation_ignores_external_anchor_and_fenced_links(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            guide = root / "guide.md"
+            guide.write_text(
+                "[External](https://example.com)\n"
+                "[Anchor](#section)\n"
+                "```markdown\n"
+                "[Example only](missing.md)\n"
+                "```\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_markdown(guide, root))
+
+    def test_markdown_validation_rejects_repository_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            docs = root / "docs"
+            docs.mkdir()
+            guide = docs / "guide.md"
+            guide.write_text("[Outside](../../outside.md)\n", encoding="utf-8")
+
+            errors = MODULE.validate_markdown(guide, root)
+            self.assertIn("link target escapes repository", errors[0])
+
 
 if __name__ == "__main__":
     unittest.main()
