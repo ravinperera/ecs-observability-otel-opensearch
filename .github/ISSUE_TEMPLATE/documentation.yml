@@ -1,0 +1,56 @@
+name: Documentation or design improvement
+description: Suggest a focused improvement to the repository's observability guidance or reference design.
+title: "[Docs]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve this reference repository. Use placeholders for environment-specific values and do not include credentials, customer data, internal endpoints, or production secrets.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the repository would benefit from the change?
+      options:
+        - README / quick start
+        - Architecture
+        - Logging
+        - Metrics and traces
+        - OpenSearch indexing
+        - Runbooks / troubleshooting
+        - Security / sensitive telemetry
+        - Cost / cardinality
+        - Production rollout guidance
+        - Other documentation
+    validations:
+      required: true
+  - type: textarea
+    id: current-gap
+    attributes:
+      label: Current gap
+      description: What is unclear, missing, or difficult to apply today?
+      placeholder: Describe the specific documentation or design gap.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-outcome
+    attributes:
+      label: Proposed outcome
+      description: What should a reader be able to understand or do after the improvement?
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Suggested validation
+      description: List any safe offline checks, link review, or example review that would confirm the change.
+      placeholder: Example: run the repository validator and verify affected Markdown links.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I have not included credentials, live customer data, internal endpoints, or production secrets.
+          required: true
