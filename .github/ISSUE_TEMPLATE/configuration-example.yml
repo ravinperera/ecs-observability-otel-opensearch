@@ -1,0 +1,59 @@
+name: Configuration example problem
+description: Report a problem in an ECS, OpenTelemetry, Fluent Bit, OpenSearch, or Terraform example using safe placeholder data.
+title: "[Example]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository contains illustrative examples, not production-ready configuration. Reproduce problems with synthetic values only. Never paste credentials, customer telemetry, private endpoints, account IDs, or other sensitive production details.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - ECS task definition
+        - OpenTelemetry Collector
+        - Fluent Bit / FireLens
+        - OpenSearch
+        - Terraform example
+        - Repository validation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong or misleading in the reference example?
+      placeholder: Include the repository file path and the observed behaviour or documentation problem.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Safe reproduction
+      description: Provide the smallest reproduction using fictional or redacted placeholder values only.
+      placeholder: List the relevant example steps without live infrastructure identifiers or secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected reference behaviour
+      description: What should the example or guidance show instead?
+    validations:
+      required: true
+  - type: textarea
+    id: production-caveat
+    attributes:
+      label: Production-impact caveat
+      description: Note any environment-specific security, networking, retention, scaling, or cost considerations that should remain explicit.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I used placeholders or synthetic data and did not include credentials, customer telemetry, internal endpoints, or production secrets.
+          required: true
