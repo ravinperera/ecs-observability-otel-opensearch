@@ -4,7 +4,7 @@
 Checks:
 - JSON files parse with the Python standard library.
 - YAML files parse with PyYAML safe_load_all.
-- Markdown files are UTF-8 and have balanced fenced code blocks.
+- Markdown files are UTF-8, have balanced fenced code blocks, and use valid repository-local links.
 
 This script intentionally does not contact AWS, OpenSearch, or collector services.
 """
@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Callable, Iterable
+from urllib.parse import unquote, urlsplit
 
 try:
     import yaml
@@ -27,7 +29,8 @@ except ImportError as exc:  # pragma: no cover - dependency setup failure
 
 
 EXCLUDED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
-ValidationFunction = Callable[[Path], list[str]]
+MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
+ValidationFunction = Callable[[Path, Path], list[str]]
 
 
 def repository_files(root: Path, suffixes: set[str]) -> Iterable[Path]:
@@ -41,7 +44,7 @@ def repository_files(root: Path, suffixes: set[str]) -> Iterable[Path]:
         yield path
 
 
-def validate_json(path: Path) -> list[str]:
+def validate_json(path: Path, _root: Path | None = None) -> list[str]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             json.load(handle)
@@ -50,7 +53,7 @@ def validate_json(path: Path) -> list[str]:
     return []
 
 
-def validate_yaml(path: Path) -> list[str]:
+def validate_yaml(path: Path, _root: Path | None = None) -> list[str]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             list(yaml.safe_load_all(handle))
@@ -59,7 +62,15 @@ def validate_yaml(path: Path) -> list[str]:
     return []
 
 
-def validate_markdown(path: Path) -> list[str]:
+def _link_destination(raw_target: str) -> str:
+    """Return a Markdown destination without an optional title."""
+    target = raw_target.strip()
+    if target.startswith("<") and ">" in target:
+        return target[1 : target.index(">")]
+    return target.split(maxsplit=1)[0] if target else ""
+
+
+def validate_markdown(path: Path, root: Path | None = None) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
@@ -69,8 +80,10 @@ def validate_markdown(path: Path) -> list[str]:
     if "\x00" in text:
         errors.append("contains a NUL byte")
 
+    repository_root = (root or path.parent).resolve()
     active_fence: str | None = None
     active_line = 0
+
     for line_number, line in enumerate(text.splitlines(), start=1):
         stripped = line.lstrip()
         marker = None
@@ -79,14 +92,44 @@ def validate_markdown(path: Path) -> list[str]:
         elif stripped.startswith("~~~"):
             marker = "~~~"
 
-        if marker is None:
+        if marker is not None:
+            if active_fence is None:
+                active_fence = marker
+                active_line = line_number
+            elif active_fence == marker:
+                active_fence = None
+                active_line = 0
             continue
-        if active_fence is None:
-            active_fence = marker
-            active_line = line_number
-        elif active_fence == marker:
-            active_fence = None
-            active_line = 0
+
+        if active_fence is not None:
+            continue
+
+        for match in MARKDOWN_LINK.finditer(line):
+            destination = _link_destination(match.group(1))
+            if not destination or destination.startswith("#"):
+                continue
+
+            parsed = urlsplit(destination)
+            if parsed.scheme or parsed.netloc:
+                continue
+
+            local_target = unquote(parsed.path)
+            if not local_target:
+                continue
+
+            candidate = (path.parent / local_target).resolve()
+            try:
+                candidate.relative_to(repository_root)
+            except ValueError:
+                errors.append(
+                    f"line {line_number}: link target escapes repository: {destination}"
+                )
+                continue
+
+            if not candidate.exists():
+                errors.append(
+                    f"line {line_number}: missing local link target: {destination}"
+                )
 
     if active_fence is not None:
         errors.append(
@@ -122,7 +165,7 @@ def main() -> int:
         counts[suffix] += 1
         relative_path = path.relative_to(root)
         errors.extend(
-            f"{relative_path}: {error}" for error in validators[suffix](path)
+            f"{relative_path}: {error}" for error in validators[suffix](path, root)
         )
 
     if errors:
