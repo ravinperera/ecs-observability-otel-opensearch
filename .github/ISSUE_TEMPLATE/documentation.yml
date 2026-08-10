@@ -44,7 +44,7 @@ body:
     attributes:
       label: Suggested validation
       description: List any safe offline checks, link review, or example review that would confirm the change.
-      placeholder: Example: run the repository validator and verify affected Markdown links.
+      placeholder: "Example: run the repository validator and verify affected Markdown links."
     validations:
       required: false
   - type: checkboxes
