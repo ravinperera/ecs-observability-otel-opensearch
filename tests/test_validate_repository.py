@@ -36,6 +36,19 @@ class RepositoryValidatorTests(unittest.TestCase):
             self.assertEqual([], MODULE.validate_json(valid))
             self.assertIn("invalid JSON", MODULE.validate_json(invalid)[0])
 
+    def test_json_validation_rejects_duplicate_object_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "task-definition.json"
+            path.write_text(
+                '{"family": "example", "family": "overridden"}\n',
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_json(path)
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("duplicate JSON object key", errors[0])
+
     def test_yaml_validation_accepts_valid_and_rejects_invalid_content(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
