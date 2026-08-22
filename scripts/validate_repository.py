@@ -44,11 +44,21 @@ def repository_files(root: Path, suffixes: set[str]) -> Iterable[Path]:
         yield path
 
 
+def reject_duplicate_json_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object while rejecting duplicate keys."""
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def validate_json(path: Path, _root: Path | None = None) -> list[str]:
     try:
         with path.open("r", encoding="utf-8") as handle:
-            json.load(handle)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            json.load(handle, object_pairs_hook=reject_duplicate_json_keys)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         return [f"invalid JSON: {exc}"]
     return []
 
