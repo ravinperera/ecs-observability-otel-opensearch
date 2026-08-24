@@ -60,6 +60,22 @@ class RepositoryValidatorTests(unittest.TestCase):
             self.assertEqual([], MODULE.validate_yaml(valid))
             self.assertIn("invalid YAML", MODULE.validate_yaml(invalid)[0])
 
+    def test_yaml_validation_rejects_duplicate_mapping_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "collector.yaml"
+            path.write_text(
+                "exporters:\n"
+                "  otlp:\n"
+                "    endpoint: first.example:4317\n"
+                "    endpoint: second.example:4317\n",
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_yaml(path)
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("found duplicate key 'endpoint'", errors[0])
+
     def test_markdown_validation_accepts_balanced_fences(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "guide.md"
