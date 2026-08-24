@@ -3,7 +3,7 @@
 
 Checks:
 - JSON files parse with the Python standard library.
-- YAML files parse with PyYAML safe_load_all.
+- YAML files parse with PyYAML SafeLoader semantics.
 - Markdown files are UTF-8, have balanced fenced code blocks, and use valid repository-local links.
 
 This script intentionally does not contact AWS, OpenSearch, or collector services.
@@ -31,6 +31,41 @@ except ImportError as exc:  # pragma: no cover - dependency setup failure
 EXCLUDED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
 ValidationFunction = Callable[[Path, Path], list[str]]
+
+
+class UniqueKeySafeLoader(yaml.SafeLoader):
+    """SafeLoader variant that rejects duplicate mapping keys."""
+
+
+def _construct_unique_mapping(loader: UniqueKeySafeLoader, node: object, deep: bool = False) -> dict[object, object]:
+    loader.flatten_mapping(node)
+    mapping: dict[object, object] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            duplicate = key in mapping
+        except TypeError as exc:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable mapping key",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+UniqueKeySafeLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
 
 
 def repository_files(root: Path, suffixes: set[str]) -> Iterable[Path]:
@@ -66,7 +101,7 @@ def validate_json(path: Path, _root: Path | None = None) -> list[str]:
 def validate_yaml(path: Path, _root: Path | None = None) -> list[str]:
     try:
         with path.open("r", encoding="utf-8") as handle:
-            list(yaml.safe_load_all(handle))
+            list(yaml.load_all(handle, Loader=UniqueKeySafeLoader))
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         return [f"invalid YAML: {exc}"]
     return []
