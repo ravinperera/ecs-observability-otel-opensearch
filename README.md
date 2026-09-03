@@ -12,7 +12,7 @@ Use this repository as a reference pattern for understanding how ECS telemetry i
 2. Review [`configs/fluent-bit-opensearch.conf`](configs/fluent-bit-opensearch.conf) for the container log-routing pattern.
 3. Review [`configs/otel-collector-config.yaml`](configs/otel-collector-config.yaml) for the metrics and traces collection pattern.
 4. Review the Terraform examples in [`terraform/`](terraform/) for supporting log groups and task IAM permissions.
-5. Read the [logging strategy](docs/logging-strategy.md), [metrics and traces](docs/metrics-and-traces.md), and [OpenSearch indexing](docs/opensearch-indexing.md) guides before adapting the pattern.
+5. Read the [logging strategy](docs/logging-strategy.md), [metrics and traces](docs/metrics-and-traces.md), [telemetry schema contract](docs/telemetry-contract.md), and [OpenSearch indexing](docs/opensearch-indexing.md) guides before adapting the pattern.
 
 The basic telemetry flow is:
 
@@ -66,6 +66,7 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 │   ├── production-rollout-checklist.md
 │   ├── runbooks.md
 │   ├── sensitive-telemetry-handling.md
+│   ├── telemetry-contract.md
 │   └── troubleshooting.md
 ├── CONTRIBUTING.md
 └── README.md
@@ -92,6 +93,7 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 - [Operational runbook examples](docs/runbooks.md)
 - [Production rollout and rollback checklist](docs/production-rollout-checklist.md)
 - [Sensitive telemetry handling](docs/sensitive-telemetry-handling.md)
+- [Telemetry schema and attribute contract](docs/telemetry-contract.md)
 - [Troubleshooting guide](docs/troubleshooting.md)
 
 ## Validation
