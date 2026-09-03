@@ -2,9 +2,10 @@
 """Run safe, offline validation for repository examples.
 
 Checks:
-- JSON files parse with the Python standard library.
-- YAML files parse with PyYAML SafeLoader semantics.
+- JSON files parse with the Python standard library and reject duplicate keys.
+- YAML files parse with PyYAML SafeLoader semantics and reject duplicate keys.
 - Markdown files are UTF-8, have balanced fenced code blocks, and use valid repository-local links.
+- Public example files do not contain obvious high-confidence credential shapes.
 
 This script intentionally does not contact AWS, OpenSearch, or collector services.
 """
@@ -30,6 +31,24 @@ except ImportError as exc:  # pragma: no cover - dependency setup failure
 
 EXCLUDED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
+PUBLIC_EXAMPLE_PATHS = (
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs",
+    "configs",
+    "ecs",
+    "terraform",
+)
+PUBLIC_TEXT_SUFFIXES = {".md", ".json", ".yaml", ".yml", ".tf", ".conf"}
+CREDENTIAL_PATTERNS = (
+    ("AWS access-key ID", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
+    ("GitHub token", re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,255}\b")),
+    ("OpenAI-style API key", re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b")),
+    (
+        "PEM private-key header",
+        re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    ),
+)
 ValidationFunction = Callable[[Path, Path], list[str]]
 
 
@@ -37,7 +56,9 @@ class UniqueKeySafeLoader(yaml.SafeLoader):
     """SafeLoader variant that rejects duplicate mapping keys."""
 
 
-def _construct_unique_mapping(loader: UniqueKeySafeLoader, node: object, deep: bool = False) -> dict[object, object]:
+def _construct_unique_mapping(
+    loader: UniqueKeySafeLoader, node: object, deep: bool = False
+) -> dict[object, object]:
     loader.flatten_mapping(node)
     mapping: dict[object, object] = {}
     for key_node, value_node in node.value:
@@ -79,6 +100,27 @@ def repository_files(root: Path, suffixes: set[str]) -> Iterable[Path]:
         yield path
 
 
+def public_example_files(root: Path) -> list[Path]:
+    """Return public documentation/configuration files that must stay credential-free."""
+    files: set[Path] = set()
+    for relative_path in PUBLIC_EXAMPLE_PATHS:
+        path = root / relative_path
+        if path.is_file() and path.suffix.lower() in PUBLIC_TEXT_SUFFIXES:
+            files.add(path)
+        elif path.is_dir():
+            files.update(
+                candidate
+                for candidate in path.rglob("*")
+                if candidate.is_file()
+                and candidate.suffix.lower() in PUBLIC_TEXT_SUFFIXES
+                and not any(
+                    part in EXCLUDED_PARTS
+                    for part in candidate.relative_to(root).parts
+                )
+            )
+    return sorted(files)
+
+
 def reject_duplicate_json_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     """Build a JSON object while rejecting duplicate keys."""
     result: dict[str, object] = {}
@@ -105,6 +147,20 @@ def validate_yaml(path: Path, _root: Path | None = None) -> list[str]:
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         return [f"invalid YAML: {exc}"]
     return []
+
+
+def validate_credential_shapes(path: Path, _root: Path | None = None) -> list[str]:
+    """Reject high-confidence credential shapes without printing the matched value."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [f"cannot scan text for credential shapes: {exc}"]
+
+    errors: list[str] = []
+    for label, pattern in CREDENTIAL_PATTERNS:
+        if pattern.search(text):
+            errors.append(f"contains a value matching the {label} pattern")
+    return errors
 
 
 def _link_destination(raw_target: str) -> str:
@@ -213,6 +269,15 @@ def main() -> int:
             f"{relative_path}: {error}" for error in validators[suffix](path, root)
         )
 
+    credential_scan_count = 0
+    for path in public_example_files(root):
+        credential_scan_count += 1
+        relative_path = path.relative_to(root)
+        errors.extend(
+            f"{relative_path}: {error}"
+            for error in validate_credential_shapes(path, root)
+        )
+
     if errors:
         print("Validation failed:", file=sys.stderr)
         for error in errors:
@@ -223,7 +288,8 @@ def main() -> int:
     print(
         "Validation passed: "
         f"{counts['.json']} JSON, {yaml_count} YAML, "
-        f"and {counts['.md']} Markdown files."
+        f"{counts['.md']} Markdown, and "
+        f"{credential_scan_count} public example files scanned for credential shapes."
     )
     return 0
 
