@@ -144,6 +144,61 @@ class RepositoryValidatorTests(unittest.TestCase):
             errors = MODULE.validate_markdown(guide, root)
             self.assertIn("link target escapes repository", errors[0])
 
+    def test_public_example_files_exclude_tests_and_scripts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            docs = root / "docs"
+            tests = root / "tests"
+            scripts = root / "scripts"
+            docs.mkdir()
+            tests.mkdir()
+            scripts.mkdir()
+            (docs / "guide.md").write_text("# Guide\n", encoding="utf-8")
+            (tests / "fixture.json").write_text("{}\n", encoding="utf-8")
+            (scripts / "helper.py").write_text("pass\n", encoding="utf-8")
+
+            files = MODULE.public_example_files(root)
+
+            self.assertEqual([docs / "guide.md"], files)
+
+    def test_credential_shape_validation_detects_supported_patterns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "example.conf"
+            aws_key = "AKIA" + ("A" * 16)
+            github_token = "ghp_" + ("a" * 36)
+            api_key = "sk-" + ("b" * 24)
+            private_key_header = "-----BEGIN " + "PRIVATE KEY-----"
+            path.write_text(
+                "\n".join([aws_key, github_token, api_key, private_key_header]) + "\n",
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_credential_shapes(path)
+
+        self.assertEqual(
+            errors,
+            [
+                "contains a value matching the AWS access-key ID pattern",
+                "contains a value matching the GitHub token pattern",
+                "contains a value matching the OpenAI-style API key pattern",
+                "contains a value matching the PEM private-key header pattern",
+            ],
+        )
+        for error in errors:
+            self.assertNotIn(aws_key, error)
+            self.assertNotIn(github_token, error)
+            self.assertNotIn(api_key, error)
+
+    def test_credential_shape_validation_allows_redacted_placeholders(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "guide.md"
+            path.write_text(
+                "Use placeholders such as AKIA<redacted>, ghp_<redacted>, and sk-<redacted>.\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_credential_shapes(path))
+
 
 if __name__ == "__main__":
     unittest.main()
