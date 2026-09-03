@@ -100,9 +100,10 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 
 The read-only GitHub Actions workflow runs on pull requests, pushes to `main`, and manual dispatches. It performs safe offline checks only:
 
-- parses every JSON example with the Python standard library;
-- parses every YAML example with the pinned `PyYAML==6.0.2` dependency;
-- verifies that Markdown files are UTF-8 and have balanced fenced code blocks.
+- parses every JSON example with the Python standard library and rejects duplicate object keys;
+- parses every YAML example with the pinned `PyYAML==6.0.2` dependency and rejects duplicate mapping keys;
+- verifies that Markdown files are UTF-8, have balanced fenced code blocks, and do not contain broken repository-local links;
+- scans public documentation, ECS/configuration examples, and Terraform files for a narrow set of high-confidence credential shapes without printing matched values.
 
 Run the same checks locally:
 
@@ -111,6 +112,8 @@ python3 -m venv .venv
 .venv/bin/python -m pip install --only-binary=:all: PyYAML==6.0.2
 .venv/bin/python scripts/validate_repository.py
 ```
+
+The credential-shape scan is intentionally narrow. It catches obvious AWS access-key IDs, GitHub tokens, OpenAI-style API keys, and PEM private-key headers while allowing redacted placeholders. It is a regression guard for a public reference repository, not a replacement for organisation-wide secret scanning.
 
 The workflow intentionally does **not** contact AWS, register ECS task definitions, connect to OpenSearch, start Fluent Bit, run an OpenTelemetry Collector binary, or verify Terraform against live providers. Those checks require environment-specific endpoints, credentials, plugins, network access, and production review. Passing this workflow confirms basic syntax and documentation structure only; it does not prove that the examples are deployment-ready.
 
