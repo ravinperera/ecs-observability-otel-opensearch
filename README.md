@@ -102,6 +102,7 @@ The read-only GitHub Actions workflow runs on pull requests, pushes to `main`, a
 
 - parses every JSON example with the Python standard library and rejects duplicate object keys;
 - parses every YAML example with the pinned `PyYAML==6.0.2` dependency and rejects duplicate mapping keys;
+- verifies that every configured OpenTelemetry telemetry pipeline keeps both the `memory_limiter` and `batch` processors, and that both processors are defined;
 - verifies that Markdown files are UTF-8, have balanced fenced code blocks, and do not contain broken repository-local links;
 - scans public documentation, ECS/configuration examples, and Terraform files for a narrow set of high-confidence credential shapes without printing matched values.
 
