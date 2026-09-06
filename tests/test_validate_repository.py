@@ -111,6 +111,41 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertIn("missing required processor definition(s): memory_limiter", errors[0])
         self.assertIn("missing required processor(s): memory_limiter", errors[1])
 
+    def test_fluent_bit_opensearch_validation_accepts_secure_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fluent-bit.conf"
+            path.write_text(
+                "[OUTPUT]\n"
+                "    Name       opensearch\n"
+                "    Host       search.example.com\n"
+                "    Port       443\n"
+                "    TLS        On\n"
+                "    AWS_Auth   On\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_fluent_bit_opensearch_security(path))
+
+    def test_fluent_bit_opensearch_validation_rejects_insecure_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fluent-bit.conf"
+            path.write_text(
+                "[OUTPUT]\n"
+                "    Name       opensearch\n"
+                "    Host       search.example.com\n"
+                "    Port       9200\n"
+                "    TLS        Off\n"
+                "    AWS_Auth   Off\n",
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_fluent_bit_opensearch_security(path)
+
+        self.assertEqual(len(errors), 3)
+        self.assertIn("TLS must be On", errors[0])
+        self.assertIn("AWS_Auth must be On", errors[1])
+        self.assertIn("Port must be 443", errors[2])
+
     def test_markdown_validation_accepts_balanced_fences(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "guide.md"

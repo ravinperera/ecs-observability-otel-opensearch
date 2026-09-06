@@ -5,6 +5,7 @@ Checks:
 - JSON files parse with the Python standard library and reject duplicate keys.
 - YAML files parse with PyYAML SafeLoader semantics and reject duplicate keys.
 - OpenTelemetry collector pipelines retain the required memory_limiter and batch processors.
+- Fluent Bit OpenSearch outputs retain TLS, AWS authentication, and HTTPS port settings.
 - Markdown files are UTF-8, have balanced fenced code blocks, and use valid repository-local links.
 - Public example files do not contain obvious high-confidence credential shapes.
 
@@ -51,6 +52,7 @@ CREDENTIAL_PATTERNS = (
     ),
 )
 OTEL_CONFIG_PATH = Path("configs/otel-collector-config.yaml")
+FLUENT_BIT_CONFIG_PATH = Path("configs/fluent-bit-opensearch.conf")
 REQUIRED_OTEL_PROCESSORS = {"memory_limiter", "batch"}
 ValidationFunction = Callable[[Path, Path], list[str]]
 
@@ -201,6 +203,61 @@ def validate_otel_pipeline_processors(
     return errors
 
 
+def _fluent_bit_blocks(text: str) -> list[tuple[str, dict[str, str]]]:
+    """Parse the small key/value subset needed for offline Fluent Bit checks."""
+    blocks: list[tuple[str, dict[str, str]]] = []
+    section: str | None = None
+    values: dict[str, str] = {}
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            if section is not None:
+                blocks.append((section, values))
+            section = line[1:-1].strip().lower()
+            values = {}
+            continue
+        if section is None:
+            continue
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            values[parts[0].lower()] = parts[1].strip()
+
+    if section is not None:
+        blocks.append((section, values))
+    return blocks
+
+
+def validate_fluent_bit_opensearch_security(
+    path: Path, _root: Path | None = None
+) -> list[str]:
+    """Require encrypted, authenticated HTTPS settings on OpenSearch outputs."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [f"cannot read Fluent Bit configuration: {exc}"]
+
+    opensearch_outputs = [
+        values
+        for section, values in _fluent_bit_blocks(text)
+        if section == "output" and values.get("name", "").lower() == "opensearch"
+    ]
+    if not opensearch_outputs:
+        return ["no OpenSearch OUTPUT block found"]
+
+    errors: list[str] = []
+    for index, output in enumerate(opensearch_outputs, start=1):
+        if output.get("tls", "").lower() != "on":
+            errors.append(f"OpenSearch OUTPUT #{index}: TLS must be On")
+        if output.get("aws_auth", "").lower() != "on":
+            errors.append(f"OpenSearch OUTPUT #{index}: AWS_Auth must be On")
+        if output.get("port", "") != "443":
+            errors.append(f"OpenSearch OUTPUT #{index}: Port must be 443")
+    return errors
+
+
 def validate_credential_shapes(path: Path, _root: Path | None = None) -> list[str]:
     """Reject high-confidence credential shapes without printing the matched value."""
     try:
@@ -330,6 +387,15 @@ def main() -> int:
             for error in validate_otel_pipeline_processors(otel_config, root)
         )
 
+    fluent_bit_config = root / FLUENT_BIT_CONFIG_PATH
+    fluent_bit_config_count = 0
+    if fluent_bit_config.is_file():
+        fluent_bit_config_count = 1
+        errors.extend(
+            f"{FLUENT_BIT_CONFIG_PATH}: {error}"
+            for error in validate_fluent_bit_opensearch_security(fluent_bit_config, root)
+        )
+
     credential_scan_count = 0
     for path in public_example_files(root):
         credential_scan_count += 1
@@ -349,7 +415,8 @@ def main() -> int:
     print(
         "Validation passed: "
         f"{counts['.json']} JSON, {yaml_count} YAML, "
-        f"{counts['.md']} Markdown, {otel_config_count} OpenTelemetry collector config, and "
+        f"{counts['.md']} Markdown, {otel_config_count} OpenTelemetry collector config, "
+        f"{fluent_bit_config_count} Fluent Bit OpenSearch config, and "
         f"{credential_scan_count} public example files scanned for credential shapes."
     )
     return 0
