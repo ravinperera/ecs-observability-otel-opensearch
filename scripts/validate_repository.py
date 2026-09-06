@@ -4,6 +4,7 @@
 Checks:
 - JSON files parse with the Python standard library and reject duplicate keys.
 - YAML files parse with PyYAML SafeLoader semantics and reject duplicate keys.
+- OpenTelemetry collector pipelines retain the required memory_limiter and batch processors.
 - Markdown files are UTF-8, have balanced fenced code blocks, and use valid repository-local links.
 - Public example files do not contain obvious high-confidence credential shapes.
 
@@ -49,6 +50,8 @@ CREDENTIAL_PATTERNS = (
         re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     ),
 )
+OTEL_CONFIG_PATH = Path("configs/otel-collector-config.yaml")
+REQUIRED_OTEL_PROCESSORS = {"memory_limiter", "batch"}
 ValidationFunction = Callable[[Path, Path], list[str]]
 
 
@@ -147,6 +150,55 @@ def validate_yaml(path: Path, _root: Path | None = None) -> list[str]:
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         return [f"invalid YAML: {exc}"]
     return []
+
+
+def validate_otel_pipeline_processors(
+    path: Path, _root: Path | None = None
+) -> list[str]:
+    """Keep basic collector reliability processors wired into every pipeline."""
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            document = yaml.load(handle, Loader=UniqueKeySafeLoader)
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        return []  # Generic YAML validation reports parse failures.
+
+    if not isinstance(document, dict):
+        return ["collector configuration must be a YAML mapping"]
+
+    processor_definitions = document.get("processors")
+    errors: list[str] = []
+    if not isinstance(processor_definitions, dict):
+        errors.append("processors: mapping is missing")
+    else:
+        missing_definitions = sorted(
+            REQUIRED_OTEL_PROCESSORS - set(processor_definitions)
+        )
+        if missing_definitions:
+            errors.append(
+                "processors: missing required processor definition(s): "
+                + ", ".join(missing_definitions)
+            )
+
+    service = document.get("service")
+    pipelines = service.get("pipelines") if isinstance(service, dict) else None
+    if not isinstance(pipelines, dict) or not pipelines:
+        errors.append("service.pipelines: mapping is missing or empty")
+        return errors
+
+    for pipeline_name, pipeline in sorted(pipelines.items()):
+        processors = pipeline.get("processors") if isinstance(pipeline, dict) else None
+        if not isinstance(processors, list):
+            errors.append(
+                f"service.pipelines.{pipeline_name}: processors must be a list"
+            )
+            continue
+        missing = sorted(REQUIRED_OTEL_PROCESSORS - set(processors))
+        if missing:
+            errors.append(
+                f"service.pipelines.{pipeline_name}: missing required processor(s): "
+                + ", ".join(missing)
+            )
+    return errors
 
 
 def validate_credential_shapes(path: Path, _root: Path | None = None) -> list[str]:
@@ -269,6 +321,15 @@ def main() -> int:
             f"{relative_path}: {error}" for error in validators[suffix](path, root)
         )
 
+    otel_config = root / OTEL_CONFIG_PATH
+    otel_config_count = 0
+    if otel_config.is_file():
+        otel_config_count = 1
+        errors.extend(
+            f"{OTEL_CONFIG_PATH}: {error}"
+            for error in validate_otel_pipeline_processors(otel_config, root)
+        )
+
     credential_scan_count = 0
     for path in public_example_files(root):
         credential_scan_count += 1
@@ -288,7 +349,7 @@ def main() -> int:
     print(
         "Validation passed: "
         f"{counts['.json']} JSON, {yaml_count} YAML, "
-        f"{counts['.md']} Markdown, and "
+        f"{counts['.md']} Markdown, {otel_config_count} OpenTelemetry collector config, and "
         f"{credential_scan_count} public example files scanned for credential shapes."
     )
     return 0
