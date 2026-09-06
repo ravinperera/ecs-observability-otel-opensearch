@@ -76,6 +76,41 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("found duplicate key 'endpoint'", errors[0])
 
+    def test_otel_pipeline_validation_accepts_required_processors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  memory_limiter: {}\n"
+                "  batch: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [memory_limiter, batch]\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_otel_pipeline_processors(path))
+
+    def test_otel_pipeline_validation_rejects_missing_required_processors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  batch: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [batch]\n",
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_otel_pipeline_processors(path)
+
+        self.assertEqual(len(errors), 2)
+        self.assertIn("missing required processor definition(s): memory_limiter", errors[0])
+        self.assertIn("missing required processor(s): memory_limiter", errors[1])
+
     def test_markdown_validation_accepts_balanced_fences(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "guide.md"
