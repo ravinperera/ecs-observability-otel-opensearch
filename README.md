@@ -85,6 +85,7 @@ See the [telemetry architecture diagram](docs/architecture.md) for the separate 
 
 ## Guides
 
+- [Change history](CHANGELOG.md) — curated, PR-linked record of repository improvements (not published releases).
 - [Telemetry architecture](docs/architecture.md)
 - [Cost and cardinality guardrails](docs/cost-and-cardinality-guardrails.md)
 - [Logging strategy](docs/logging-strategy.md)
