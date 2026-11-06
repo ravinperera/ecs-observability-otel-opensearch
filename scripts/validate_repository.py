@@ -251,6 +251,12 @@ def validate_fluent_bit_opensearch_security(
     for index, output in enumerate(opensearch_outputs, start=1):
         if output.get("tls", "").lower() != "on":
             errors.append(f"OpenSearch OUTPUT #{index}: TLS must be On")
+        # Fluent Bit enables certificate verification by default, but an
+        # explicit tls.verify Off/False/No/0 would silently weaken this example.
+        if output.get("tls.verify", "on").lower() not in {"on", "true", "yes", "1"}:
+            errors.append(
+                f"OpenSearch OUTPUT #{index}: TLS certificate verification must be On"
+            )
         if output.get("aws_auth", "").lower() != "on":
             errors.append(f"OpenSearch OUTPUT #{index}: AWS_Auth must be On")
         if output.get("port", "") != "443":
