@@ -146,6 +146,47 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertIn("AWS_Auth must be On", errors[1])
         self.assertIn("Port must be 443", errors[2])
 
+    def test_fluent_bit_opensearch_rejects_disabled_tls_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fluent-bit.conf"
+            for value in ("Off", "FALSE", "No", "0"):
+                with self.subTest(tls_verify=value):
+                    path.write_text(
+                        "[OUTPUT]\n"
+                        "    Name       opensearch\n"
+                        "    Port       443\n"
+                        "    TLS        On\n"
+                        "    AWS_Auth   On\n"
+                        f"    TLS.Verify {value}\n",
+                        encoding="utf-8",
+                    )
+                    self.assertEqual(
+                        [
+                            "OpenSearch OUTPUT #1: "
+                            "TLS certificate verification must be On"
+                        ],
+                        MODULE.validate_fluent_bit_opensearch_security(path),
+                    )
+
+    def test_fluent_bit_opensearch_accepts_explicit_tls_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fluent-bit.conf"
+            for value in ("On", "TRUE", "Yes", "1"):
+                with self.subTest(tls_verify=value):
+                    path.write_text(
+                        "[OUTPUT]\n"
+                        "    Name       opensearch\n"
+                        "    Port       443\n"
+                        "    TLS        On\n"
+                        "    AWS_Auth   On\n"
+                        f"    tls.verify {value}\n",
+                        encoding="utf-8",
+                    )
+                    self.assertEqual(
+                        [],
+                        MODULE.validate_fluent_bit_opensearch_security(path),
+                    )
+
     def test_markdown_validation_accepts_balanced_fences(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "guide.md"
