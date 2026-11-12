@@ -194,12 +194,26 @@ def validate_otel_pipeline_processors(
                 f"service.pipelines.{pipeline_name}: processors must be a list"
             )
             continue
+        if any(not isinstance(name, str) or not name.strip() for name in processors):
+            errors.append(
+                f"service.pipelines.{pipeline_name}: processors must contain "
+                "non-empty string names"
+            )
+            continue
+
         missing = sorted(REQUIRED_OTEL_PROCESSORS - set(processors))
         if missing:
             errors.append(
                 f"service.pipelines.{pipeline_name}: missing required processor(s): "
                 + ", ".join(missing)
             )
+        if isinstance(processor_definitions, dict):
+            undefined = sorted(set(processors) - set(processor_definitions))
+            if undefined:
+                errors.append(
+                    f"service.pipelines.{pipeline_name}: undefined processor(s): "
+                    + ", ".join(undefined)
+                )
     return errors
 
 
