@@ -111,6 +111,67 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertIn("missing required processor definition(s): memory_limiter", errors[0])
         self.assertIn("missing required processor(s): memory_limiter", errors[1])
 
+    def test_otel_pipeline_validation_rejects_undefined_processor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  memory_limiter: {}\n"
+                "  batch: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [memory_limiter, resource/missing, batch]\n",
+                encoding="utf-8",
+            )
+
+            errors = MODULE.validate_otel_pipeline_processors(path)
+
+        self.assertEqual(
+            ["service.pipelines.traces: undefined processor(s): resource/missing"],
+            errors,
+        )
+
+    def test_otel_pipeline_validation_accepts_defined_named_processor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  memory_limiter: {}\n"
+                "  batch: {}\n"
+                "  resource/enriched: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [memory_limiter, resource/enriched, batch]\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_otel_pipeline_processors(path))
+
+    def test_otel_pipeline_validation_reports_malformed_processor_names(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            for invalid in ("{resource: configured}", "42", "null", "''"):
+                with self.subTest(invalid=invalid):
+                    path.write_text(
+                        "processors:\n"
+                        "  memory_limiter: {}\n"
+                        "  batch: {}\n"
+                        "service:\n"
+                        "  pipelines:\n"
+                        "    traces:\n"
+                        f"      processors: [memory_limiter, {invalid}, batch]\n",
+                        encoding="utf-8",
+                    )
+                    self.assertEqual(
+                        [
+                            "service.pipelines.traces: processors must contain "
+                            "non-empty string names"
+                        ],
+                        MODULE.validate_otel_pipeline_processors(path),
+                    )
+
     def test_fluent_bit_opensearch_validation_accepts_secure_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "fluent-bit.conf"
