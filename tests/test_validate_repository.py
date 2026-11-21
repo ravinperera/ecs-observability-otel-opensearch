@@ -92,6 +92,74 @@ class RepositoryValidatorTests(unittest.TestCase):
 
             self.assertEqual([], MODULE.validate_otel_pipeline_processors(path))
 
+    def test_otel_pipeline_validation_accepts_named_required_processors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  memory_limiter/ecs: {}\n"
+                "  batch/ecs: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [memory_limiter/ecs, batch/ecs]\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], MODULE.validate_otel_pipeline_processors(path))
+
+    def test_otel_pipeline_validation_keeps_exact_named_reference_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            path.write_text(
+                "processors:\n"
+                "  memory_limiter/defined: {}\n"
+                "  batch: {}\n"
+                "service:\n"
+                "  pipelines:\n"
+                "    traces:\n"
+                "      processors: [memory_limiter/missing, batch]\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                [
+                    "service.pipelines.traces: undefined processor(s): "
+                    "memory_limiter/missing"
+                ],
+                MODULE.validate_otel_pipeline_processors(path),
+            )
+
+    def test_otel_pipeline_validation_rejects_invalid_required_type_suffix(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "otel.yaml"
+            for invalid in (
+                "memory_limiter/",
+                "memory_limiter//nested",
+                "memory_limiter/bad name",
+                "memory_limiter_extra",
+            ):
+                with self.subTest(identifier=invalid):
+                    path.write_text(
+                        "processors:\n"
+                        f"  '{invalid}': {{}}\n"
+                        "  batch: {}\n"
+                        "service:\n"
+                        "  pipelines:\n"
+                        "    traces:\n"
+                        f"      processors: ['{invalid}', batch]\n",
+                        encoding="utf-8",
+                    )
+                    self.assertEqual(
+                        [
+                            "processors: missing required processor definition(s): "
+                            "memory_limiter",
+                            "service.pipelines.traces: missing required processor(s): "
+                            "memory_limiter",
+                        ],
+                        MODULE.validate_otel_pipeline_processors(path),
+                    )
+
     def test_otel_pipeline_validation_rejects_missing_required_processors(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "otel.yaml"

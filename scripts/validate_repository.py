@@ -57,6 +57,23 @@ REQUIRED_OTEL_PROCESSORS = {"memory_limiter", "batch"}
 ValidationFunction = Callable[[Path, Path], list[str]]
 
 
+def required_processor_types(identifiers: Iterable[object]) -> set[str]:
+    """Recognize required Collector processor types in type[/name] identifiers."""
+    found: set[str] = set()
+    for identifier in identifiers:
+        if not isinstance(identifier, str):
+            continue
+        component_type, separator, instance = identifier.partition("/")
+        if component_type not in REQUIRED_OTEL_PROCESSORS:
+            continue
+        if separator and (
+            not instance or "/" in instance or any(char.isspace() for char in instance)
+        ):
+            continue
+        found.add(component_type)
+    return found
+
+
 class UniqueKeySafeLoader(yaml.SafeLoader):
     """SafeLoader variant that rejects duplicate mapping keys."""
 
@@ -173,7 +190,7 @@ def validate_otel_pipeline_processors(
         errors.append("processors: mapping is missing")
     else:
         missing_definitions = sorted(
-            REQUIRED_OTEL_PROCESSORS - set(processor_definitions)
+            REQUIRED_OTEL_PROCESSORS - required_processor_types(processor_definitions)
         )
         if missing_definitions:
             errors.append(
@@ -201,7 +218,7 @@ def validate_otel_pipeline_processors(
             )
             continue
 
-        missing = sorted(REQUIRED_OTEL_PROCESSORS - set(processors))
+        missing = sorted(REQUIRED_OTEL_PROCESSORS - required_processor_types(processors))
         if missing:
             errors.append(
                 f"service.pipelines.{pipeline_name}: missing required processor(s): "
